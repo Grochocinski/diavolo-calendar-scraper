@@ -30,6 +30,48 @@ def _parse_time(raw: str) -> tuple[int, int] | None:
     return (hour, minute)
 
 
+VTIMEZONE_NEW_YORK = (
+    "BEGIN:VTIMEZONE\r\n"
+    "TZID:America/New_York\r\n"
+    "BEGIN:STANDARD\r\n"
+    "DTSTART:19701101T020000\r\n"
+    "TZOFFSETFROM:-0400\r\n"
+    "TZOFFSETTO:-0500\r\n"
+    "RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU\r\n"
+    "TZNAME:EST\r\n"
+    "END:STANDARD\r\n"
+    "BEGIN:DAYLIGHT\r\n"
+    "DTSTART:19700308T020000\r\n"
+    "TZOFFSETFROM:-0500\r\n"
+    "TZOFFSETTO:-0400\r\n"
+    "RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=2SU\r\n"
+    "TZNAME:EDT\r\n"
+    "END:DAYLIGHT\r\n"
+    "END:VTIMEZONE\r\n"
+)
+
+
+def _fixup_ics(output: str, timezone: str) -> str:
+    """Clean up ics library output for RFC 5545 compliance."""
+    # Normalize non-standard TZID prefixes on DTSTART/DTEND.
+    output = re.sub(r"TZID=/?[^:]*?/(America/[^:\r\n]+)", r"TZID=\1", output)
+    # Replace the library-generated VTIMEZONE with a clean one.
+    output = re.sub(
+        r"BEGIN:VTIMEZONE\r\n.*?END:VTIMEZONE\r\n",
+        VTIMEZONE_NEW_YORK,
+        output,
+        flags=re.DOTALL,
+    )
+    # Move X-WR-* properties to just after PRODID.
+    xwr_lines = re.findall(r"X-WR-[^\r\n]+", output)
+    for line in xwr_lines:
+        output = output.replace(line + "\r\n", "")
+    xwr_block = "\r\n".join(xwr_lines) + "\r\n"
+    prodid_end = output.index("\r\n", output.index("PRODID:")) + 2
+    output = output[:prodid_end] + xwr_block + output[prodid_end:]
+    return output
+
+
 def parse_schedule(
     html_path: Path = ROOT / CONFIG["html_file"],
     ics_path: Path = ROOT / CONFIG["ics_file"],
@@ -141,19 +183,8 @@ def parse_schedule(
 
         cal.events.append(event)
 
-    output = cal.serialize()
-    # The ics library uses non-standard TZID prefixes like
-    # /ics.py/2020.1/America/New_York.  Normalize to bare IANA names.
-    output = re.sub(r"TZID=/?[^:]*?/(America/[^:\r\n]+)", r"TZID=\1", output)
-    output = re.sub(r"TZID:/?[^/\r\n]*/[^/\r\n]*/(America/[^\r\n]+)", r"TZID:\1", output)
-    # Move X-WR-* properties to just after PRODID for RFC ordering.
-    xwr_lines = re.findall(r"X-WR-[^\r\n]+", output)
-    for line in xwr_lines:
-        output = output.replace(line + "\r\n", "")
-    xwr_block = "\r\n".join(xwr_lines) + "\r\n"
-    prodid_end = output.index("\r\n", output.index("PRODID:")) + 2
-    output = output[:prodid_end] + xwr_block + output[prodid_end:]
-    ics_path.write_text(output)
+    output = _fixup_ics(cal.serialize(), CONFIG["timezone"])
+    ics_path.write_bytes(output.encode("utf-8"))
     print(f"Success! Wrote {len(cal.events)} events to {ics_path}")
 
 
