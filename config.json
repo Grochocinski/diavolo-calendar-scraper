@@ -2,6 +2,8 @@
   "schedule_url": "https://www.carync.gov/recreation-enjoyment/parks-greenways-environment/parks/middle-creek-school-park/diavolo-new-hope-disc-golf-course",
   "html_file": "diavolo_page.html",
   "ics_file": "diavolo_schedule.ics",
+  "calendar_name": "Diavolo Disc Golf",
+  "timezone": "America/New_York",
   "default_course": "diavolo",
   "courses": {
     "diavolo": {

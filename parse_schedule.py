@@ -4,6 +4,7 @@ import re
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from bs4 import BeautifulSoup
 from ics import Calendar, Event
@@ -89,8 +90,8 @@ def parse_schedule(
         sys.exit(1)
 
     cal = Calendar()
-    cal.extra.append(ContentLine(name="X-WR-CALNAME", value="Diavolo Disc Golf"))
-    cal.extra.append(ContentLine(name="X-WR-TIMEZONE", value="America/New_York"))
+    cal.extra.append(ContentLine(name="X-WR-CALNAME", value=CONFIG["calendar_name"]))
+    cal.extra.append(ContentLine(name="X-WR-TIMEZONE", value=CONFIG["timezone"]))
 
     uid_counts: dict[str, int] = {}
 
@@ -121,8 +122,9 @@ def parse_schedule(
             start_time = _parse_time(time_match.group(1))
             end_time = _parse_time(time_match.group(2))
             if start_time is not None and end_time is not None:
-                event.begin = date_obj.replace(hour=start_time[0], minute=start_time[1])
-                end_dt = date_obj.replace(hour=end_time[0], minute=end_time[1])
+                tz = ZoneInfo(CONFIG["timezone"])
+                event.begin = date_obj.replace(hour=start_time[0], minute=start_time[1], tzinfo=tz)
+                end_dt = date_obj.replace(hour=end_time[0], minute=end_time[1], tzinfo=tz)
                 if end_dt <= event.begin:
                     end_dt += timedelta(days=1)
                 event.end = end_dt
@@ -139,7 +141,9 @@ def parse_schedule(
 
         cal.events.append(event)
 
-    ics_path.write_text(cal.serialize())
+    output = cal.serialize()
+    output = re.sub(r"TZID=[^:]*?/(America/[^:]+)", r"TZID=\1", output)
+    ics_path.write_text(output)
     print(f"Success! Wrote {len(cal.events)} events to {ics_path}")
 
 
