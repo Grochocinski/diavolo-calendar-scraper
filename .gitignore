@@ -1,0 +1,4 @@
+.venv/
+__pycache__/
+diavolo_page.html
+diavolo_page_contents.html

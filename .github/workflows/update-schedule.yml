@@ -1,0 +1,32 @@
+name: Update Diavolo Schedule
+
+on:
+  schedule:
+    - cron: "0 12 * * *" # noon UTC daily
+  workflow_dispatch: # allow manual runs
+
+permissions:
+  contents: write
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Download page
+        run: uv run python download_page.py
+
+      - name: Parse schedule
+        run: uv run python parse_schedule.py
+
+      - name: Commit updated schedule
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add diavolo_schedule.ics
+          git diff --cached --quiet && echo "No changes to commit" && exit 0
+          git commit -m "Update Diavolo schedule $(date -u +%Y-%m-%d)"
+          git push
