@@ -1,3 +1,4 @@
+import hashlib
 import json
 import re
 import sys
@@ -74,6 +75,8 @@ def parse_schedule(
     cal = Calendar()
     cal.extra.append(ContentLine(name="X-WR-CALNAME", value="Diavolo Disc Golf"))
 
+    uid_counts: dict[str, int] = {}
+
     for date_str, status, description, course_key in entries:
         status = status.strip().replace("\xa0", " ")
         description = description.strip().replace("\xa0", " ") if description else ""
@@ -84,7 +87,14 @@ def parse_schedule(
             continue
 
         course = courses[course_key]
+        base_key = f"{date_obj.strftime('%Y-%m-%d')}|{course_key}"
+        idx = uid_counts.get(base_key, 0)
+        uid_counts[base_key] = idx + 1
+        uid_input = f"{base_key}|{idx}"
+        uid = hashlib.sha256(uid_input.encode()).hexdigest()[:16]
+
         event = Event()
+        event.uid = f"{uid}@diavolo-calendar-scraper"
         event.summary = f"{course['name']}: {status}"
         event.location = f"{course['name']}, {course['address']}"
         event.begin = date_obj.replace(hour=8)
