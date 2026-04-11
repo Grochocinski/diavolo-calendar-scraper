@@ -5,6 +5,7 @@ from pathlib import Path
 
 from bs4 import BeautifulSoup
 from ics import Calendar, Event
+from ics.contentline import ContentLine
 
 DEFAULT_HTML = Path(__file__).resolve().parent / "diavolo_page.html"
 DEFAULT_ICS = Path(__file__).resolve().parent / "diavolo_schedule.ics"
@@ -65,6 +66,7 @@ def parse_schedule(html_path: Path = DEFAULT_HTML, ics_path: Path = DEFAULT_ICS)
         sys.exit(1)
 
     cal = Calendar()
+    cal.extra.append(ContentLine(name="X-WR-CALNAME", value="Diavolo Disc Golf"))
 
     for date_str, status, description in entries:
         status = status.strip().replace("\xa0", " ")
