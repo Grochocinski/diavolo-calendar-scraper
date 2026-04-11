@@ -1,0 +1,16 @@
+{
+  "schedule_url": "https://www.carync.gov/recreation-enjoyment/parks-greenways-environment/parks/middle-creek-school-park/diavolo-new-hope-disc-golf-course",
+  "html_file": "diavolo_page.html",
+  "ics_file": "diavolo_schedule.ics",
+  "default_course": "diavolo",
+  "courses": {
+    "diavolo": {
+      "name": "Diavolo at New Hope",
+      "address": "2584 New Hope Church Rd, Cary, NC 27519"
+    },
+    "middle creek": {
+      "name": "Middle Creek",
+      "address": "151 Middle Creek Park Ave, Apex, NC 27539"
+    }
+  }
+}

@@ -1,14 +1,17 @@
+import json
 from pathlib import Path
 
 from curl_cffi import requests
 
-URL = "https://www.carync.gov/recreation-enjoyment/parks-greenways-environment/parks/middle-creek-school-park/diavolo-new-hope-disc-golf-course"
-DEFAULT_OUT = Path(__file__).resolve().parent / "diavolo_page.html"
+ROOT = Path(__file__).resolve().parent
+CONFIG = json.loads((ROOT / "config.json").read_text())
 
 
-def download_page(out_path: Path = DEFAULT_OUT) -> Path:
-    print(f"Downloading {URL} ...")
-    response = requests.get(URL, impersonate="chrome")
+def download_page() -> Path:
+    url = CONFIG["schedule_url"]
+    out_path = ROOT / CONFIG["html_file"]
+    print(f"Downloading {url} ...")
+    response = requests.get(url, impersonate="chrome")
     response.raise_for_status()
     out_path.write_text(response.text, encoding="utf-8")
     print(f"Saved to {out_path}")

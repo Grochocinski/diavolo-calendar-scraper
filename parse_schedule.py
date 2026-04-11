@@ -1,3 +1,4 @@
+import json
 import re
 import sys
 from datetime import datetime
@@ -7,11 +8,14 @@ from bs4 import BeautifulSoup
 from ics import Calendar, Event
 from ics.contentline import ContentLine
 
-DEFAULT_HTML = Path(__file__).resolve().parent / "diavolo_page.html"
-DEFAULT_ICS = Path(__file__).resolve().parent / "diavolo_schedule.ics"
+ROOT = Path(__file__).resolve().parent
+CONFIG = json.loads((ROOT / "config.json").read_text())
 
 
-def parse_schedule(html_path: Path = DEFAULT_HTML, ics_path: Path = DEFAULT_ICS):
+def parse_schedule(
+    html_path: Path = ROOT / CONFIG["html_file"],
+    ics_path: Path = ROOT / CONFIG["ics_file"],
+):
     soup = BeautifulSoup(html_path.read_text(encoding="utf-8"), "html.parser")
 
     page_text = soup.get_text()
@@ -42,7 +46,10 @@ def parse_schedule(html_path: Path = DEFAULT_HTML, ics_path: Path = DEFAULT_ICS)
         row_text = row_text.strip("|").strip()
         raw_rows.append(row_text)
 
-    entries: list[tuple[str, str, str]] = []
+    courses = CONFIG["courses"]
+    course_keys = {k for k in courses if k != CONFIG["default_course"]}
+
+    entries: list[tuple[str, str, str, str]] = []
     for row in raw_rows:
         chunks = re.split(r"(?=\d{2}/\d{2}\|)", row)
         for chunk in chunks:
@@ -53,13 +60,12 @@ def parse_schedule(html_path: Path = DEFAULT_HTML, ics_path: Path = DEFAULT_ICS)
             status = fields[1]
             if not re.match(r"(?:Open|Closed)", status, re.IGNORECASE):
                 continue
-            # Everything after the status is description.  Some entries
-            # have a trailing location field (e.g. "Middle Creek") we drop.
             desc_fields = fields[2:]
-            if desc_fields and desc_fields[-1].lower() in ("middle creek",):
-                desc_fields = desc_fields[:-1]
+            course_key = CONFIG["default_course"]
+            if desc_fields and desc_fields[-1].lower() in course_keys:
+                course_key = desc_fields.pop().lower()
             description = " ".join(desc_fields)
-            entries.append((date_str, status, description))
+            entries.append((date_str, status, description, course_key))
 
     if not entries:
         print("Could not find any scheduled events matching the expected format.")
@@ -68,7 +74,7 @@ def parse_schedule(html_path: Path = DEFAULT_HTML, ics_path: Path = DEFAULT_ICS)
     cal = Calendar()
     cal.extra.append(ContentLine(name="X-WR-CALNAME", value="Diavolo Disc Golf"))
 
-    for date_str, status, description in entries:
+    for date_str, status, description, course_key in entries:
         status = status.strip().replace("\xa0", " ")
         description = description.strip().replace("\xa0", " ") if description else ""
 
@@ -77,8 +83,10 @@ def parse_schedule(html_path: Path = DEFAULT_HTML, ics_path: Path = DEFAULT_ICS)
         except ValueError:
             continue
 
+        course = courses[course_key]
         event = Event()
-        event.summary = f"Diavolo: {status}"
+        event.summary = f"{course['name']}: {status}"
+        event.location = f"{course['name']}, {course['address']}"
         event.begin = date_obj.replace(hour=8)
         if description:
             event.description = description
