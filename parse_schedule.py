@@ -142,7 +142,17 @@ def parse_schedule(
         cal.events.append(event)
 
     output = cal.serialize()
-    output = re.sub(r"TZID=[^:]*?/(America/[^:]+)", r"TZID=\1", output)
+    # The ics library uses non-standard TZID prefixes like
+    # /ics.py/2020.1/America/New_York.  Normalize to bare IANA names.
+    output = re.sub(r"TZID=/?[^:]*?/(America/[^:\r\n]+)", r"TZID=\1", output)
+    output = re.sub(r"TZID:/?[^/\r\n]*/[^/\r\n]*/(America/[^\r\n]+)", r"TZID:\1", output)
+    # Move X-WR-* properties to just after PRODID for RFC ordering.
+    xwr_lines = re.findall(r"X-WR-[^\r\n]+", output)
+    for line in xwr_lines:
+        output = output.replace(line + "\r\n", "")
+    xwr_block = "\r\n".join(xwr_lines) + "\r\n"
+    prodid_end = output.index("\r\n", output.index("PRODID:")) + 2
+    output = output[:prodid_end] + xwr_block + output[prodid_end:]
     ics_path.write_text(output)
     print(f"Success! Wrote {len(cal.events)} events to {ics_path}")
 
