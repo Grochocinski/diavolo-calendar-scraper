@@ -90,6 +90,7 @@ def parse_schedule(
 
     cal = Calendar()
     cal.extra.append(ContentLine(name="X-WR-CALNAME", value="Diavolo Disc Golf"))
+    cal.extra.append(ContentLine(name="X-WR-TIMEZONE", value="America/New_York"))
 
     uid_counts: dict[str, int] = {}
 
