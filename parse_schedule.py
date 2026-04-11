@@ -2,7 +2,7 @@ import hashlib
 import json
 import re
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from bs4 import BeautifulSoup
@@ -11,6 +11,22 @@ from ics.contentline import ContentLine
 
 ROOT = Path(__file__).resolve().parent
 CONFIG = json.loads((ROOT / "config.json").read_text())
+
+
+def _parse_time(raw: str) -> tuple[int, int] | None:
+    """Parse '4pm', '12:30am', etc. into (hour, minute)."""
+    raw = raw.strip().lower()
+    m = re.match(r"^(\d{1,2})(?::(\d{2}))?\s*(am|pm)$", raw)
+    if not m:
+        return None
+    hour = int(m.group(1))
+    minute = int(m.group(2) or 0)
+    period = m.group(3)
+    if period == "am" and hour == 12:
+        hour = 0
+    elif period == "pm" and hour != 12:
+        hour += 12
+    return (hour, minute)
 
 
 def parse_schedule(
@@ -97,18 +113,28 @@ def parse_schedule(
         event.uid = f"{uid}@diavolo-calendar-scraper"
         event.summary = f"{course['name']}: {status}"
         event.location = f"{course['name']}, {course['address']}"
-        event.begin = date_obj.replace(hour=8)
+
+        time_pat = r"\(?\s*(\d{1,2}(?::\d{2})?\s*(?:am|pm))\s*[-\u2013]\s*(\d{1,2}(?::\d{2})?\s*(?:am|pm))\s*\)?"
+        time_match = re.search(time_pat, description, re.IGNORECASE)
+        if time_match:
+            start_time = _parse_time(time_match.group(1))
+            end_time = _parse_time(time_match.group(2))
+            if start_time is not None and end_time is not None:
+                event.begin = date_obj.replace(hour=start_time[0], minute=start_time[1])
+                end_dt = date_obj.replace(hour=end_time[0], minute=end_time[1])
+                if end_dt <= event.begin:
+                    end_dt += timedelta(days=1)
+                event.end = end_dt
+                description = re.sub(time_pat, " ", description, count=1, flags=re.IGNORECASE).strip()
+            else:
+                event.begin = date_obj.replace(hour=8)
+                event.make_all_day()
+        else:
+            event.begin = date_obj.replace(hour=8)
+            event.make_all_day()
+
         if description:
             event.description = description
-        event.make_all_day()
-
-        time_match = re.search(
-            r"(\d+(?::\d{2})?\s*(?:am|pm)?\s*[-\u2013]\s*\d+(?::\d{2})?\s*(?:am|pm))",
-            f"{status} {description}",
-            re.IGNORECASE,
-        )
-        if time_match:
-            event.description = (event.description or "") + f"\nScheduled Time: {time_match.group(1)}"
 
         cal.events.append(event)
 
