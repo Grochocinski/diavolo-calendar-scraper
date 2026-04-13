@@ -3,7 +3,7 @@ from pathlib import Path
 
 from curl_cffi import requests
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parent.parent
 CONFIG = json.loads((ROOT / "config.json").read_text())
 
 

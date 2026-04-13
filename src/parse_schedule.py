@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 from ics import Calendar, Event
 from ics.contentline import ContentLine
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parent.parent
 CONFIG = json.loads((ROOT / "config.json").read_text())
 
 
@@ -75,7 +75,7 @@ def _fixup_ics(output: str, timezone: str) -> str:
 def parse_schedule(
     html_path: Path = ROOT / CONFIG["html_file"],
     ics_path: Path = ROOT / CONFIG["ics_file"],
-):
+) -> None:
     soup = BeautifulSoup(html_path.read_text(encoding="utf-8"), "html.parser")
 
     page_text = soup.get_text()

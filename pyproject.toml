@@ -4,3 +4,9 @@ version = "0.1.0"
 description = "Scrapes the Diavolo Disc Golf Course schedule to an ICS file."
 requires-python = ">=3.9"
 dependencies = ["beautifulsoup4", "curl-cffi", "ics>=0.8.0.dev0", "requests"]
+
+[dependency-groups]
+dev = ["pytest~=8.3"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
